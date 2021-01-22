@@ -1,6 +1,5 @@
 import discord
 import random
-import os
 import requests
 from bs4 import BeautifulSoup
 
@@ -12,8 +11,7 @@ emogilist = ('1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '
 async def on_ready():
     print(client.user.id)
     print("ready")
-    game = discord.Game("/도움말")
-    await client.change_presence(status=discord.Status.online, activity=game)
+    await client.change_presence(activity=discord.Activity(type=discord.ActivityType.listening, name="/도움말"))
 
 
 @client.event
@@ -85,7 +83,7 @@ async def on_message(message):
 
 
     if message.content.startswith("/실검"):
-        embed = discord.Embed(title="드발스봇", description="네이버 실검 1 ~ 10위입니다", color=0x1ca54d)
+        embed = discord.Embed(title="드발스봇", description="네이버 실시간 검색어 1 ~ 10위입니다", color=0x1ca54d)
         embed.set_thumbnail(url="https://t1.daumcdn.net/cfile/tistory/99E493445C0D20A143")
         json = requests.get("https://www.naver.com/srchrank?frm=main").json()
         ranks = json.get("data")
@@ -102,12 +100,12 @@ async def on_message(message):
 
     if message.content.startswith("/전적"):
         try:
-            tierImage = {'Unrank':'//opgg-static.akamaized.net/images/medals/default.png', 'Bronze':'//opgg-static.akamaized.net/images/medals/bronze_4.png?image=q_auto:best&v=1',
+            tierImage = {'Unrank':'//opgg-static.akamaized.net/images/medals/default.png', 'Iron':'//opgg-static.akamaized.net/images/medals/iron_2.png?image=q_auto:best&v=1', 'Bronze':'//opgg-static.akamaized.net/images/medals/bronze_4.png?image=q_auto:best&v=1',
                              'Silver':'//opgg-static.akamaized.net/images/medals/silver_2.png?image=q_auto:best&v=1', 'Gold':'//opgg-static.akamaized.net/images/medals/gold_2.png?image=q_auto:best&v=1',
-                             'pPlatinum':'//opgg-static.akamaized.net/images/medals/platinum_2.png?image=q_auto:best&v=1', 'Diamond':'//opgg-static.akamaized.net/images/medals/diamond_1.png?image=q_auto:best&v=1',
+                             'Platinum':'//opgg-static.akamaized.net/images/medals/platinum_2.png?image=q_auto:best&v=1', 'Diamond':'//opgg-static.akamaized.net/images/medals/diamond_1.png?image=q_auto:best&v=1',
                              'Master':'//opgg-static.akamaized.net/images/medals/master_1.png?image=q_auto:best&v=1', 'Grandmaster':'//opgg-static.akamaized.net/images/medals/grandmaster_1.png?image=q_auto:best&v=1',
                              'Challenger':'//opgg-static.akamaized.net/images/medals/challenger_1.png?image=q_auto:best&v=1'}
-            tiers = ('Unrank', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger')
+            tiers = ('Unrank', 'Iron', 'Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Master', 'Grandmaster', 'Challenger')
             message_split = message.content.split()
             name = ''.join(message_split[1:])
             embed = discord.Embed(title="드발스봇", description="다음은 " + name + "님의 op.gg 검색 결과입니다.", color=0x1ca54d)
@@ -219,7 +217,58 @@ async def on_message(message):
 
         await message.channel.send(embed=embed)
 
+    
 
+
+    if message.content.startswith("/챔피언"):
+        try:
+            message_split = message.content.split()
+            champ = str(message_split[1:])[2:-2]
+
+            headers = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/87.0.4280.141 Safari/537.36'}
+            url = 'https://search.naver.com/search.naver?sm=tab_hty.top&where=nexearch&query=%EB%A6%AC%EA%B7%B8+%EC%98%A4%EB%B8%8C+%EB%A0%88%EC%A0%84%EB%93%9C+' + champ
+            res = requests.get(url, headers=headers)
+            soup = BeautifulSoup(res.content, 'html.parser')
+
+            embed = discord.Embed(title="드발스봇", description="다음은 " + champ + "에 관한 정보입니다", color=0x1ca54d)
+
+
+            champImgUrl = soup.findAll("div",class_="area_img_box")
+            champImg = str(champImgUrl).split('src="')[1][:-23]
+            embed.set_thumbnail(url=champImg)
+
+            champName = str((soup.select('span.text'))).split("</strong>")[0][28:]
+            embed.add_field(name="이름", value=champName, inline=True)
+
+            champRole = str(soup.select('div.info_group')[1]).split("<dd>")[1][1:-12]
+            embed.add_field(name="역할", value=champRole, inline=True)
+
+            champloc = str(soup.select('div.info_group')[2]).split("<dd>")[1][1:-12]
+            embed.add_field(name="지역", value=champloc, inline=True)
+
+            if champ == "아트록스":
+                champDesc = str(soup.select('span')[72]).split('<br/>')
+                champDescs = ""
+
+            else:
+                champDesc = str(soup.select('span')[70]).split('<br/>')
+                champDescs = ""
+            for i in range(1, len(champDesc)):
+                champDescs = champDescs + champDesc[i]
+            embed.add_field(name=champDesc[0][25:], value=champDescs[:-7], inline=True)
+
+            await message.channel.send(embed=embed)
+        except:
+            embed = discord.Embed(title="드발스봇", description=":warning:해당 챔피언의 정보가 존재하지 않습니다.", color=0x1ca54d)
+            embed.add_field(name=":small_orange_diamond:사용법", value="/챔피언 [챔피언이름]")
+            await message.channel.send(embed=embed)
+
+
+
+    if message.content.startswith("/핑"):
+        embed = discord.Embed(title="드발스봇", description="핑: {}ms".format(client.latency), color=0x1ca54d)
+        await message.channel.send(embed=embed)
+        
 
         
 
@@ -230,11 +279,14 @@ async def on_message(message):
     if message.content.startswith("/도움말"):
         embed = discord.Embed(title="드발스봇", description=":small_orange_diamond:드발스봇을 이용해주셔서 감사합니다", color=0x1ca54d)
         embed.add_field(name=":small_blue_diamond:호출", value="하이 드발스", inline=False)
-        embed.add_field(name=":small_blue_diamond:투표", value="/투표 투표주제 항목1 항목2 ⋯", inline=False)
+        embed.add_field(name=":small_blue_diamond:투표", value="/투표 [투표주제] [항목1] [항목2] ⋯", inline=False)
+        embed.add_field(name=":small_blue_diamond:팀 뽑기", value="/팀 뽑기 [이름] [이름] ⋯", inline=False)
         embed.add_field(name=":small_blue_diamond:네이버 실시간 검색어 확인", value="/실검", inline=False)
-        embed.add_field(name=":small_blue_diamond:롤 전적 검색", value="/전적 소환사닉네임", inline=False)
+        embed.add_field(name=":small_blue_diamond:롤 전적 검색", value="/전적 [소환사닉네임]", inline=False)
         embed.add_field(name=":small_blue_diamond:날씨 확인", value="/날씨 [지역]", inline=False)
         embed.add_field(name=":small_blue_diamond:코로나 현황 확인", value="/코로나", inline=False)
+        embed.add_field(name=":small_blue_diamond:챔피언 정보 확인", value="/챔피언 [챔피언이름]", inline=False)
+        embed.add_field(name=":small_blue_diamond:드발스봇 핑", value="/핑", inline=False)
 
         
         await message.channel.send(embed=embed)
